@@ -38,7 +38,6 @@ server = return users
 
 users :: [User]
 users = [ User 1 "Isaac" "Newton"
-        , User 2 "Albert" "Einstein"
-        ]
+        , User 2 "Albert" "Einstein" ]
 
 main = startApp
