@@ -70,6 +70,7 @@ executable roasted
     -- Other library packages from which modules are imported.
     build-depends:    base ^>=4.17.2.1
                     , aeson ^>= 2.1.0.0
+                    , hschema ^>= 0.0.1.1
                     , servant ^>=0.19
                     , servant-server ^>= 0.19
                     , wai ^>= 3.2.0

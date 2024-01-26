@@ -1,4 +1,3 @@
-{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeOperators   #-}
 {-# LANGUAGE DataKinds   #-}
 
@@ -8,21 +7,13 @@ module Main
     , main
     ) where
 
-import Data.Aeson
-import Data.Aeson.TH
-import Network.Wai
-import Network.Wai.Handler.Warp
-import Servant
+import Coffee (Coffee, exampleCoffee)
 
-data User = User
-  { userId        :: Int
-  , userFirstName :: String
-  , userLastName  :: String
-  } deriving (Eq, Show)
+import Network.Wai (Application)
+import Network.Wai.Handler.Warp (run)
+import Servant (Server, serve, Get, JSON, Proxy(Proxy), (:>))
 
-$(deriveJSON defaultOptions ''User)
-
-type API = "users" :> Get '[JSON] [User]
+type API = "coffee" :> Get '[JSON] Coffee
 
 startApp :: IO ()
 startApp = run 8080 app
@@ -34,10 +25,7 @@ api :: Proxy API
 api = Proxy
 
 server :: Server API
-server = return users
+server = return exampleCoffee
 
-users :: [User]
-users = [ User 1 "Isaac" "Newton"
-        , User 2 "Albert" "Einstein" ]
-
+main :: IO ()
 main = startApp
