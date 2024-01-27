@@ -5,10 +5,13 @@ module Coffee
     ( Weight(Oz)
     , Coffee(Coffee)
     , exampleCoffee
+    , exampleCoffeeInsertSession
+    , insertCoffee
     , name
     -- , weight
     -- , grinds
-    , description ) where
+    , mDescription
+    , selectCoffees ) where
 
 import Data.Functor.Contravariant ((>$<))
 import Data.Int (Int64)
@@ -18,6 +21,7 @@ import Hasql.Session (Session)
 import Hasql.Statement (Statement(..))
 import qualified Hasql.Decoders as D
 import qualified Hasql.Encoders as E
+import qualified Hasql.Session as Session
 
 data Weight = Oz Int deriving (Eq, Show)
 $(deriveJSON defaultOptions ''Weight)
@@ -36,18 +40,28 @@ $(deriveJSON defaultOptions ''Grind)
   
 data Coffee = Coffee 
   { name   :: Text 
-  , description :: Text } deriving (Eq, Show)
+  , mDescription :: Maybe Text } deriving (Eq, Show)
 $(deriveJSON defaultOptions ''Coffee)
 
 coffeeParams :: E.Params Coffee
 coffeeParams = 
-  ((name) >$< E.param (E.nonNullable E.text))
-  <> ((description) >$< E.param (E.nonNullable E.text))
-
+  (name >$< E.param (E.nonNullable E.text))
+  <> (mDescription >$< E.param (E.nullable E.text))
 
 insertCoffee :: Statement Coffee Int64
 insertCoffee = Statement sql coffeeParams D.rowsAffected True where
     sql = "insert into coffee values ($1, $2)"
 
+selectCoffees :: Statement () [Coffee]
+selectCoffees = Statement sql E.noParams (D.rowList
+    (Coffee
+    <$> D.column (D.nonNullable D.text)
+    <*> D.column (D.nullable D.text)))
+    True
+    where sql = "select * from coffee"
+
 exampleCoffee :: Coffee
-exampleCoffee = Coffee "Yummy" "yummy yummy"
+exampleCoffee = Coffee "Yummy" (pure "yummy yummy")
+
+exampleCoffeeInsertSession :: Session Int64
+exampleCoffeeInsertSession = Session.statement exampleCoffee insertCoffee

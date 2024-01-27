@@ -7,8 +7,5 @@ CREATE DATABASE roasted
 
 CREATE TABLE coffee(
     name VARCHAR(45) NOT NULL,
-    grind VARCHAR(20) Not NULL,
-    description VARCHAR(500),
+    description VARCHAR(500)
 );
-
-

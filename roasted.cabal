@@ -62,7 +62,9 @@ executable roasted
     main-is:          Main.hs
 
     -- Modules included in this executable, other than Main.
-    -- other-modules:
+    other-modules:    Coffee
+                    , Monad
+                    , Api
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
@@ -71,9 +73,11 @@ executable roasted
     build-depends:    base ^>=4.17.2.1
                     , aeson ^>= 2.1.0.0
                     , hasql ^>= 1.6.4
+                    , mtl ^>= 2.2.2
                     , servant ^>=0.19
                     , servant-server ^>= 0.19
                     , text ^>= 2.0.0
+                    , tuple ^>= 0.3.0.0
                     , wai ^>= 3.2.0
                     , wai-cors ^>= 0.2.7
                     , warp ^>= 3.3.0

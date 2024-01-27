@@ -1,48 +1,41 @@
-{-# LANGUAGE TypeOperators   #-}
 {-# LANGUAGE DataKinds   #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Main
-    ( startApp
-    , app
+    ( app
     , main
     ) where
-
-import Coffee (Coffee, exampleCoffee)
-
-import qualified Hasql.Session as Session
+import Control.Monad.Reader (runReaderT)
 import qualified Hasql.Connection as Connection
 import Network.Wai (Application)
 import Network.Wai.Handler.Warp (run)
-import Servant (Server, serve, Get, JSON, Proxy(Proxy), (:>))
-
-import Data.Maybe (fromMaybe)
+import Servant (Proxy(Proxy), Handler, hoistServer, serve)
 import System.Environment (lookupEnv)
 
-type API = "coffee" :> Get '[JSON] Coffee
+import Api (RoastedApi, server)
+import Data.Word (Word16)
+import Monad (RoastedMonad, Env(Env))
 
-startApp :: Int -> IO ()
-startApp = flip run app
-
-app :: Application
-app = serve api server
-
-api :: Proxy API
+api :: Proxy RoastedApi
 api = Proxy
 
-server :: Server API
-server = return exampleCoffee
+nt :: Env -> RoastedMonad a -> Handler a
+nt s x = runReaderT x s
+
+app :: Env -> Application
+app s = serve api $ hoistServer api (nt s) server
 
 main :: IO ()
 main = do 
   apiPort <- 
-    maybe 8080 read
+    maybe 8080 (read :: String -> Int)
     <$> lookupEnv "ROASTED_API_PORT"
 
   postgresPort <- 
-    maybe 5432 read
+    maybe 5432 (read :: String -> Int)
     <$> lookupEnv "ROASTED_POSTGRES_PORT"
-  
+
   Right connection <- Connection.acquire $
-    Connection.settings "localhost" postgresPort "postgres" "password" "postgres"
-  startApp apiPort
+    Connection.settings "localhost" (fromIntegral postgresPort :: Word16) "postgres" "password" "postgres"
+
+  run apiPort $ app $ Env apiPort postgresPort connection
