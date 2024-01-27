@@ -1,0 +1,11 @@
+version: '3'
+services:
+  database:
+    image: 'postgres:latest'
+    ports:
+      - ${ROASTED_POSTGRES_PORT}:${ROASTED_POSTGRES_PORT}
+
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: default_database
