@@ -113,6 +113,7 @@ test-suite tests
                       , roasted
                       , hspec ^>= 2.11.7
                       , hspec-wai ^>= 0.11
+                      , http-client ^>= 0.7.16
                       , mtl ^>= 2.2.2
                       , servant-server ^>= 0.20
                       , servant-client ^>= 0.20

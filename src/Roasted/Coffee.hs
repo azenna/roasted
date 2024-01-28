@@ -3,9 +3,9 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Roasted.Coffee ( CoffeeT, Coffee, exampleCoffee ) where
+module Roasted.Coffee ( CoffeeT(Coffee), Coffee, exampleCoffee ) where
 
-import Data.Functor.Identity (Identity)
+import Data.Functor.Identity (Identity(Identity))
 import Data.Aeson (ToJSON, FromJSON)
 import Data.Text (Text)
 import Data.Swagger (ToSchema)
