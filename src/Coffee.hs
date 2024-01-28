@@ -1,67 +1,35 @@
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Coffee 
-    ( Weight(Oz)
-    , Coffee(Coffee)
-    , exampleCoffee
-    , exampleCoffeeInsertSession
-    , insertCoffee
-    , name
-    -- , weight
-    -- , grinds
-    , mDescription
-    , selectCoffees ) where
+module Coffee ( CoffeeT, Coffee, exampleCoffee ) where
 
-import Data.Functor.Contravariant ((>$<))
-import Data.Int (Int64)
+import qualified Database.Beam as B
+import GHC.Generics (Generic)
+import Data.Functor.Identity (Identity)
+
 import Data.Text (Text)
-import Data.Aeson.TH (deriveJSON, defaultOptions)
-import Hasql.Session (Session)
-import Hasql.Statement (Statement(..))
-import qualified Hasql.Decoders as D
-import qualified Hasql.Encoders as E
-import qualified Hasql.Session as Session
+import Database.Beam.Postgres (Postgres)
+import Database.Beam.Backend (MonadBeam)
+import Data.Aeson (ToJSON)
 
-data Weight = Oz Int deriving (Eq, Show)
-$(deriveJSON defaultOptions ''Weight)
+data CoffeeT f = Coffee
+  { _name :: B.Columnar f Text
+  , _description :: B.Columnar f (Maybe Text) }
+  deriving (Generic)
+  deriving anyclass (B.Beamable)
 
-data Grind = 
-    Wholebean
-  | Espresso
-  | Moka
-  | Pourover
-  | Drip
-  | Frenchpress
-  | Aeropress
-  | Coldbrew
-  | Custom String deriving (Eq, Show)
-$(deriveJSON defaultOptions ''Grind)
-  
-data Coffee = Coffee 
-  { name   :: Text 
-  , mDescription :: Maybe Text } deriving (Eq, Show)
-$(deriveJSON defaultOptions ''Coffee)
+type Coffee = CoffeeT Identity
+deriving instance Show Coffee
 
-coffeeParams :: E.Params Coffee
-coffeeParams = 
-  (name >$< E.param (E.nonNullable E.text))
-  <> (mDescription >$< E.param (E.nullable E.text))
-
-insertCoffee :: Statement Coffee Int64
-insertCoffee = Statement sql coffeeParams D.rowsAffected True where
-    sql = "insert into coffee values ($1, $2)"
-
-selectCoffees :: Statement () [Coffee]
-selectCoffees = Statement sql E.noParams (D.rowList
-    (Coffee
-    <$> D.column (D.nonNullable D.text)
-    <*> D.column (D.nullable D.text)))
-    True
-    where sql = "select * from coffee"
+instance ToJSON Coffee
 
 exampleCoffee :: Coffee
-exampleCoffee = Coffee "Yummy" (pure "yummy yummy")
+exampleCoffee = Coffee "Test" (pure "test test test")
 
-exampleCoffeeInsertSession :: Session Int64
-exampleCoffeeInsertSession = Session.statement exampleCoffee insertCoffee
+instance B.Table CoffeeT where
+  data PrimaryKey CoffeeT f = CoffeeId (B.Columnar f Text)
+    deriving (Generic)
+    deriving anyclass (B.Beamable)
+  primaryKey = CoffeeId . _name
