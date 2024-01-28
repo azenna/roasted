@@ -2,14 +2,14 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE DeriveAnyClass #-}
 
-module Domain (RoastedDb, selectCoffees, insertCoffee) where
+module Roasted.Domain (RoastedDb, selectCoffees, insertCoffee) where
 
 import qualified Database.Beam as B
 import qualified Database.Beam.Query as BQ
 import Database.Beam.Postgres (Postgres)
 import GHC.Generics (Generic)
 
-import Coffee (CoffeeT, Coffee)
+import Roasted.Coffee (CoffeeT, Coffee)
 
 data RoastedDb f = RoastedDb
   { _coffee :: f (B.TableEntity CoffeeT) }

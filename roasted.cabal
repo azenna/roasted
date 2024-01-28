@@ -54,21 +54,16 @@ extra-doc-files:    CHANGELOG.md
 common warnings
     ghc-options: -Wall
 
-executable roasted
+library
     -- Import common warning flags.
     import:           warnings
 
-    -- .hs or .lhs file containing the Main module.
-    main-is:          Main.hs
 
-    -- Modules included in this executable, other than Main.
-    other-modules:    Coffee
-                    , Monad
-                    , Api
-                    , Domain
-
-    -- LANGUAGE extensions used by modules in this package.
-    -- other-extensions:
+    exposed-modules:    Roasted.Coffee
+                      , Roasted.Monad
+                      , Roasted.Api
+                      , Roasted.Domain
+                      , Roasted.Config
 
     -- Other library packages from which modules are imported.
     build-depends:    base ^>=4.17.2.1
@@ -84,12 +79,43 @@ executable roasted
                     , servant-swagger-ui ^>= 0.3.5.5.0.0
                     , swagger2 ^>= 2.8
                     , text ^>= 2.0.0
-                    , wai ^>= 3.2.0
-                    , wai-cors ^>= 0.2.7
-                    , warp ^>= 3.3.0
 
     -- Directories containing source files.
     hs-source-dirs:   src
+    default-language: GHC2021
+
+executable roasted
+    -- Import common warning flags.
+    import:           warnings
+
+    -- .hs or .lhs file containing the Main module.
+    main-is:          Main.hs
+
+    -- Other library packages from which modules are imported.
+    build-depends:    base ^>=4.17.2.1
+                    , roasted
+                    , mtl ^>= 2.2.2
+                    , servant-server ^>= 0.20
+                    , wai ^>= 3.2.0
+                    , warp ^>= 3.3.0
+
+    -- Directories containing source files.
+    hs-source-dirs:   app
 
     -- Base language which the package is written in.
     default-language: GHC2021
+
+test-suite tests
+    type:               exitcode-stdio-1.0
+    main-is:            Main.hs
+    hs-source-dirs:     tests
+    build-depends:      base ^>=4.17.2.1 
+                      , roasted
+                      , hspec ^>= 2.11.7
+                      , hspec-wai ^>= 0.11
+                      , mtl ^>= 2.2.2
+                      , servant-server ^>= 0.20
+                      , servant-client ^>= 0.20
+                      , wai ^>= 3.2.0
+                      , warp ^>= 3.3.0
+    default-language:   GHC2021

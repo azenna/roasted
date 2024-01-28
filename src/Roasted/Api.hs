@@ -2,10 +2,11 @@
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE DataKinds           #-}
 
-module Api 
+module Roasted.Api 
     ( Api
     , RoastedApi 
-    , server) where
+    , server
+    , roastedServer ) where
 
 import Control.Monad.Reader (asks)
 import Control.Monad.IO.Class (liftIO)
@@ -16,9 +17,9 @@ import Servant (ServerT,  Get, JSON, (:>), (:<|>)(..), PostNoContent, ReqBody, N
 import Servant.Swagger (toSwagger)
 import Servant.Swagger.UI (swaggerSchemaUIServerT, SwaggerSchemaUI)
 
-import Coffee (Coffee)
-import Monad (RoastedMonad, connection)
-import Domain (selectCoffees, insertCoffee)
+import Roasted.Coffee (Coffee)
+import Roasted.Monad (RoastedMonad, connection)
+import Roasted.Domain (selectCoffees, insertCoffee)
 
 type Api = RoastedApi :<|> SwaggerSchemaUI "swagger-ui" "swagger.json"
 
