@@ -13,10 +13,10 @@ import Network.Wai.Handler.Warp (run)
 import Servant (Proxy(Proxy), Handler, hoistServer, serve)
 import System.Environment (lookupEnv)
 
-import Api (RoastedApi, server)
+import Api (RoastedApi, Api, server)
 import Monad (RoastedMonad, Env(Env))
 
-api :: Proxy RoastedApi
+api :: Proxy Api
 api = Proxy
 
 nt :: Env -> RoastedMonad a -> Handler a

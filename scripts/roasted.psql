@@ -1,11 +1,11 @@
-CREATE DATABASE roasted
+CREATE DATABASE if not exists roasted
     WITH
     OWNER = postgres
     ENCODING = 'UTF8'
     CONNECTION LIMIT = -1;
 
 
-CREATE TABLE coffee(
+CREATE TABLE if not exists coffee (
     name VARCHAR(45) NOT NULL,
     description VARCHAR(500)
 );

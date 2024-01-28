@@ -2,7 +2,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE DeriveAnyClass #-}
 
-module Domain (RoastedDb, selectCoffees) where
+module Domain (RoastedDb, selectCoffees, insertCoffee) where
 
 import qualified Database.Beam as B
 import qualified Database.Beam.Query as BQ
@@ -19,9 +19,11 @@ data RoastedDb f = RoastedDb
 roastedDb :: B.DatabaseSettings be RoastedDb
 roastedDb = B.defaultDbSettings
 
-
 selectCoffees :: (B.MonadBeam Postgres m) => m [Coffee]
 selectCoffees = do
   let coffees = BQ.all_ (_coffee roastedDb)
   BQ.runSelectReturningList $ BQ.select coffees
 
+insertCoffee :: (B.MonadBeam Postgres m) => Coffee -> m ()
+insertCoffee coffee =
+  BQ.runInsert $ BQ.insert (_coffee roastedDb) (BQ.insertValues $ pure coffee)

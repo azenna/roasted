@@ -31,12 +31,11 @@
           haskell-language-server
           haskellPackages.doctest
           postgresql
+          lzma
         ];
 
         shellHook =
-         ''
-          source .env
-         '';
+         '' source .env '';
       };
     });
 }

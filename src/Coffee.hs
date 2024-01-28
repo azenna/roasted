@@ -5,14 +5,12 @@
 
 module Coffee ( CoffeeT, Coffee, exampleCoffee ) where
 
+import Data.Functor.Identity (Identity)
+import Data.Aeson (ToJSON, FromJSON)
+import Data.Text (Text)
+import Data.Swagger (ToSchema)
 import qualified Database.Beam as B
 import GHC.Generics (Generic)
-import Data.Functor.Identity (Identity)
-
-import Data.Text (Text)
-import Database.Beam.Postgres (Postgres)
-import Database.Beam.Backend (MonadBeam)
-import Data.Aeson (ToJSON)
 
 data CoffeeT f = Coffee
   { _name :: B.Columnar f Text
@@ -24,6 +22,13 @@ type Coffee = CoffeeT Identity
 deriving instance Show Coffee
 
 instance ToJSON Coffee
+instance FromJSON Coffee
+instance ToSchema Coffee
+
+type CoffeeUpdate = CoffeeT Maybe
+deriving instance Show CoffeeUpdate
+
+instance FromJSON CoffeeUpdate
 
 exampleCoffee :: Coffee
 exampleCoffee = Coffee "Test" (pure "test test test")
