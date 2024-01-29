@@ -6,18 +6,18 @@ import Data.Either (fromRight)
 import Network.HTTP.Client qualified as Nhc
 import Network.Wai.Handler.Warp qualified as Warp
 import Network.Wai (Application)
-import Roasted.Api qualified as R
-import Roasted.Config qualified as R
-import Roasted.Monad qualified as R
+import Roasted.Api.Coffee qualified as RAC
+import Roasted.Config qualified as RC
+import Roasted.Monad qualified as RM
 import Servant qualified as S
 import Servant.Client qualified as S
 import Test.Hspec qualified as H
 
-api :: S.Proxy R.RoastedApi
+api :: S.Proxy RAC.CoffeeApi
 api = S.Proxy
 
-app :: R.Env -> Application
-app env = S.serve api $ S.hoistServer api (`Mr.runReaderT` env) R.roastedServer
+app :: RM.Env -> Application
+app env = S.serve api $ S.hoistServer api (`Mr.runReaderT` env) RAC.coffeeServer
 
 type TestHandler = Mr.ReaderT Application IO
 
@@ -37,7 +37,7 @@ coffee = do
 
     H.describe "POST /coffee" $ do
       H.it "Should create a coffee" $ \port -> do
-        result <- S.runClientM (createCoffee (R.CoffeeReq "Unique" (Just "it's working?"))) (clientEnv port)
+        result <- S.runClientM (createCoffee (RAC.CoffeeReq "Unique" (Just "it's working?"))) (clientEnv port)
         result `H.shouldBe` Right S.NoContent
 
     H.describe "GET /coffee" $ do
@@ -47,8 +47,8 @@ coffee = do
 
 main :: IO ()
 main = do
-  config <- R.getConfig
-  env <- R.envFromConfig config
+  config <- RC.getConfig
+  env <- RM.envFromConfig config
 
   spec <- Mr.runReaderT coffee (app env)
 

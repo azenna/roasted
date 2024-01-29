@@ -9,20 +9,20 @@ where
 import Control.Monad.Reader qualified as Mr
 import Network.Wai (Application)
 import Network.Wai.Handler.Warp (run)
-import Roasted.Api qualified as R
-import Roasted.Config qualified as R
-import Roasted.Monad qualified as R
+import Roasted.Api.Api qualified as RA
+import Roasted.Config qualified as RC
+import Roasted.Monad qualified as RM
 import Servant qualified as S
 
-api :: S.Proxy R.Api
+api :: S.Proxy RA.Api
 api = S.Proxy
 
-app :: R.Env -> Application
-app env = S.serve api $ S.hoistServer api (`Mr.runReaderT` env) R.server
+app :: RM.Env -> Application
+app env = S.serve api $ S.hoistServer api (`Mr.runReaderT` env) RA.server
 
 main :: IO ()
 main = do
-  config <- R.getConfig
-  env <- R.envFromConfig config
+  config <- RC.getConfig
+  env <- RM.envFromConfig config
 
-  run (R.apiPort config) $ app env
+  run (RC.apiPort config) $ app env

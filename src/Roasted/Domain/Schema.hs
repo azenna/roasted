@@ -2,14 +2,21 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE TypeFamilies #-}
 
-module Roasted.Coffee (CoffeeT (Coffee), Coffee, mkCoffeeId) where
+module Roasted.Domain.Schema 
+    ( CoffeeT(Coffee)
+    , Coffee
+    , RoastedDb
+    , _coffee
+    , mkCoffeeId
+    , roastedDb ) where
 
-import Data.Int (Int64)
 import Data.Aeson qualified as A
+import Data.Int (Int64)
 import Data.Functor.Identity (Identity)
 import Data.Swagger (ToSchema)
 import Data.Text (Text)
 import Database.Beam qualified as B
+import Database.Beam.Postgres qualified as BP
 import GHC.Generics (Generic)
 
 data CoffeeT f = Coffee
@@ -35,3 +42,11 @@ instance B.Table CoffeeT where
 
 mkCoffeeId :: B.Columnar f Int64 -> B.PrimaryKey CoffeeT f
 mkCoffeeId = CoffeeId
+
+data RoastedDb f = RoastedDb
+  {_coffee :: f (B.TableEntity CoffeeT)}
+  deriving (Generic)
+  deriving anyclass (B.Database BP.Postgres)
+
+roastedDb :: B.DatabaseSettings be RoastedDb
+roastedDb = B.defaultDbSettings
