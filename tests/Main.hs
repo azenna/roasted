@@ -2,6 +2,7 @@
 
 import Control.Monad.IO.Class qualified as Mio
 import Control.Monad.Reader qualified as Mr
+import Data.Either (fromRight)
 import Network.HTTP.Client qualified as Nhc
 import Network.Wai.Handler.Warp qualified as Warp
 import Network.Wai (Application)
@@ -20,7 +21,7 @@ app env = S.serve api $ S.hoistServer api (`Mr.runReaderT` env) R.roastedServer
 
 type TestHandler = Mr.ReaderT Application IO
 
-allCoffee S.:<|> insertCoffee = S.client api
+retrieveCoffees S.:<|> createCoffee S.:<|> retrieveCoffee = S.client api
 
 coffee :: TestHandler H.Spec
 coffee = do
@@ -35,9 +36,14 @@ coffee = do
     let clientEnv port = S.mkClientEnv manager (baseUrl {S.baseUrlPort = port})
 
     H.describe "POST /coffee" $ do
-      H.it "should create a tasty coffee" $ \port -> do
-        result <- S.runClientM (insertCoffee (R.CoffeeReq "Unique" (Just "it's working?"))) (clientEnv port)
+      H.it "Should create a coffee" $ \port -> do
+        result <- S.runClientM (createCoffee (R.CoffeeReq "Unique" (Just "it's working?"))) (clientEnv port)
         result `H.shouldBe` Right S.NoContent
+
+    H.describe "GET /coffee" $ do
+      H.it "Should fetch all coffees" $ \port -> do
+        result <- S.runClientM retrieveCoffees (clientEnv port)
+        result `H.shouldSatisfy` fromRight False . fmap ((>=1) . length)
 
 main :: IO ()
 main = do

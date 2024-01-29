@@ -2,7 +2,7 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE TypeFamilies #-}
 
-module Roasted.Coffee (CoffeeT (Coffee), Coffee, CoffeeId)where
+module Roasted.Coffee (CoffeeT (Coffee), Coffee, mkCoffeeId) where
 
 import Data.Int (Int64)
 import Data.Aeson qualified as A
@@ -12,12 +12,9 @@ import Data.Text (Text)
 import Database.Beam qualified as B
 import GHC.Generics (Generic)
 
-
-type CoffeeId = Int64
-
 data CoffeeT f = Coffee
   { 
-    id :: B.Columnar f CoffeeId,
+    coffeeId :: B.Columnar f Int64,
     name :: B.Columnar f Text,
     description :: B.Columnar f (Maybe Text)
   }
@@ -25,23 +22,16 @@ data CoffeeT f = Coffee
   deriving anyclass (B.Beamable)
 
 type Coffee = CoffeeT Identity
-
 deriving instance Show Coffee
-
 instance A.ToJSON Coffee
-
 instance A.FromJSON Coffee
-
 instance ToSchema Coffee
 
-type CoffeeUpdate = CoffeeT Maybe
-
-deriving instance Show CoffeeUpdate
-
-instance A.FromJSON CoffeeUpdate
-
 instance B.Table CoffeeT where
-  data PrimaryKey CoffeeT f = CoffeeId (B.Columnar f Text)
+  data PrimaryKey CoffeeT f = CoffeeId (B.Columnar f Int64)
     deriving (Generic)
     deriving anyclass (B.Beamable)
-  primaryKey = CoffeeId . name
+  primaryKey = CoffeeId . coffeeId
+
+mkCoffeeId :: B.Columnar f Int64 -> B.PrimaryKey CoffeeT f
+mkCoffeeId = CoffeeId

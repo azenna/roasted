@@ -13,10 +13,11 @@ where
 
 import Control.Lens qualified as L
 import GHC.Generics (Generic)
+import Data.Int (Int64)
 import Data.Aeson qualified as A
 import Data.Swagger qualified as SW
 import Data.Text (Text)
-import Roasted.Coffee (Coffee)
+import Roasted.Coffee qualified as RCF
 import Roasted.Domain qualified as RD
 import Roasted.Monad (RoastedMonad)
 import Servant qualified as S
@@ -36,24 +37,29 @@ server = roastedServer S.:<|> SSWU.swaggerSchemaUIServerT swaggerDoc
 
 type RoastedApi =
   "coffee"
-    S.:> ( S.Get '[S.JSON] [Coffee]
+    S.:> ( S.Get '[S.JSON] [RCF.Coffee]
            S.:<|> S.ReqBody '[S.JSON] CoffeeReq S.:> S.PostNoContent
+           S.:<|> S.Capture "coffee_id" Int64 S.:> S.Get '[S.JSON] RCF.Coffee
        )
 
 data CoffeeReq = CoffeeReq
   { name :: Text
   , description :: Maybe Text } deriving (Generic)
 
-
 instance SW.ToSchema CoffeeReq
 instance A.FromJSON CoffeeReq
 instance A.ToJSON CoffeeReq
 
 roastedServer :: S.ServerT RoastedApi RoastedMonad
-roastedServer = coffeeAll S.:<|> coffeeInsert
+roastedServer = RD.selectCoffees S.:<|> createCoffee S.:<|> retrieveCoffee
 
-coffeeInsert :: CoffeeReq -> RoastedMonad S.NoContent
-coffeeInsert coffee = (RD.insertCoffee <$> name <*> description) coffee >> pure S.NoContent
+retrieveCoffee :: Int64 -> RoastedMonad RCF.Coffee
+retrieveCoffee coffeeId = do
+    mCoffee <- RD.lookupCoffee coffeeId
+    case mCoffee of
+      Just c -> pure c
+      Nothing -> S.throwError S.err404
 
-coffeeAll :: RoastedMonad [Coffee]
-coffeeAll = RD.selectCoffees
+
+createCoffee :: CoffeeReq -> RoastedMonad S.NoContent
+createCoffee coffee = (RD.insertCoffee <$> name <*> description) coffee >> pure S.NoContent
