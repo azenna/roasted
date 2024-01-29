@@ -1,28 +1,28 @@
-{-# LANGUAGE DataKinds   #-}
+{-# LANGUAGE DataKinds #-}
 
 module Main
-    ( app
-    , main
-    ) where
+  ( app,
+    main,
+  )
+where
 
-import Control.Monad.Reader (runReaderT)
+import Control.Monad.Reader qualified as Mr
 import Network.Wai (Application)
 import Network.Wai.Handler.Warp (run)
-import Servant (Proxy(Proxy), hoistServer, serve)
+import Roasted.Api qualified as R
+import Roasted.Config qualified as R
+import Roasted.Monad qualified as R
+import Servant qualified as S
 
-import Roasted.Api (Api, server)
-import Roasted.Config (apiPort, getConfig)
-import Roasted.Monad (Env, envFromConfig)
+api :: S.Proxy R.Api
+api = S.Proxy
 
-api :: Proxy Api
-api = Proxy
-
-app :: Env -> Application
-app env = serve api $ hoistServer api (`runReaderT` env) server
+app :: R.Env -> Application
+app env = S.serve api $ S.hoistServer api (`Mr.runReaderT` env) R.server
 
 main :: IO ()
 main = do
-  config <- getConfig
-  env <- envFromConfig config
+  config <- R.getConfig
+  env <- R.envFromConfig config
 
-  run (apiPort config) $ app env
+  run (R.apiPort config) $ app env

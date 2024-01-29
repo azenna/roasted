@@ -1,53 +1,49 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-import Test.Hspec (hspec, describe, it, shouldBe, around)
-import Control.Monad.Reader (runReaderT, ReaderT, asks, ask)
-import Control.Monad.IO.Class (liftIO)
-import Network.HTTP.Client (defaultManagerSettings, newManager)
+import Control.Monad.IO.Class qualified as Mio
+import Control.Monad.Reader qualified as Mr
+import Network.HTTP.Client qualified as Nhc
+import Network.Wai.Handler.Warp qualified as Warp
 import Network.Wai (Application)
-import Network.Wai.Handler.Warp (testWithApplication, Port)
-import Servant (Proxy(Proxy), hoistServer, serve, (:<|>)(..), NoContent(NoContent))
-import qualified Servant.Client as SC
-import Test.Hspec (Spec, runIO)
+import Roasted.Api qualified as R
+import Roasted.Config qualified as R
+import Roasted.Monad qualified as R
+import Servant qualified as S
+import Servant.Client qualified as S
+import Test.Hspec qualified as H
 
-import Roasted.Api (RoastedApi, roastedServer)
-import Roasted.Config (apiPort, getConfig)
-import Roasted.Monad (Env, envFromConfig)
-import Roasted.Coffee (CoffeeT(Coffee))
+api :: S.Proxy R.RoastedApi
+api = S.Proxy
 
-api :: Proxy RoastedApi
-api = Proxy
+app :: R.Env -> Application
+app env = S.serve api $ S.hoistServer api (`Mr.runReaderT` env) R.roastedServer
 
-app :: Env -> Application
-app env = serve api $ hoistServer api (`runReaderT` env) roastedServer
+type TestHandler = Mr.ReaderT Application IO
 
-type TestHandler = ReaderT Application IO
+allCoffee S.:<|> insertCoffee = S.client api
 
-allCoffee :<|> insertCoffee = SC.client api
-
-coffee :: TestHandler Spec
+coffee :: TestHandler H.Spec
 coffee = do
-    withApp <- asks (testWithApplication . pure)
+  withApp <- Mr.asks (Warp.testWithApplication . pure)
 
-    pure $ around withApp $ do
-      let roasted = SC.client api
+  pure $ H.around withApp $ do
+    let roasted = S.client api
 
-      baseUrl <- runIO $ SC.parseBaseUrl "http://localhost"
-      manager <- runIO $ newManager defaultManagerSettings
+    baseUrl <- H.runIO $ S.parseBaseUrl "http://localhost"
+    manager <- H.runIO $ Nhc.newManager Nhc.defaultManagerSettings
 
-      let clientEnv port = SC.mkClientEnv manager (baseUrl { SC.baseUrlPort = port })
+    let clientEnv port = S.mkClientEnv manager (baseUrl {S.baseUrlPort = port})
 
-      describe "POST /coffee" $ do
-          it "should create a tasty coffee" $ \port -> do
-            result <- SC.runClientM (insertCoffee $ Coffee "Unique" (Just "it's working?")) (clientEnv port)
-            result `shouldBe` (Right NoContent)
-
+    H.describe "POST /coffee" $ do
+      H.it "should create a tasty coffee" $ \port -> do
+        result <- S.runClientM (insertCoffee (R.CoffeeReq "Unique" (Just "it's working?"))) (clientEnv port)
+        result `H.shouldBe` Right S.NoContent
 
 main :: IO ()
 main = do
-  config <- getConfig
-  env <- envFromConfig config
+  config <- R.getConfig
+  env <- R.envFromConfig config
 
-  spec <- runReaderT coffee (app env)
+  spec <- Mr.runReaderT coffee (app env)
 
-  hspec spec
+  H.hspec spec

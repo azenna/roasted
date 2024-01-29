@@ -25,6 +25,7 @@
 
         # development tools we use
         nativeBuildInputs = with pkgs; [
+          ormolu
           alejandra
           cabal-install
           cabal2nix
@@ -35,7 +36,9 @@
         ];
 
         shellHook =
-         '' source .env '';
+         '' 
+         source .env 
+         '';
       };
     });
 }

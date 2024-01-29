@@ -1,40 +1,47 @@
+{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE DeriveAnyClass #-}
-{-# LANGUAGE OverloadedStrings #-}
 
-module Roasted.Coffee ( CoffeeT(Coffee), Coffee, exampleCoffee ) where
+module Roasted.Coffee (CoffeeT (Coffee), Coffee, CoffeeId)where
 
-import Data.Functor.Identity (Identity(Identity))
-import Data.Aeson (ToJSON, FromJSON)
-import Data.Text (Text)
+import Data.Int (Int64)
+import Data.Aeson qualified as A
+import Data.Functor.Identity (Identity)
 import Data.Swagger (ToSchema)
-import qualified Database.Beam as B
+import Data.Text (Text)
+import Database.Beam qualified as B
 import GHC.Generics (Generic)
 
+
+type CoffeeId = Int64
+
 data CoffeeT f = Coffee
-  { _name :: B.Columnar f Text
-  , _description :: B.Columnar f (Maybe Text) }
+  { 
+    id :: B.Columnar f CoffeeId,
+    name :: B.Columnar f Text,
+    description :: B.Columnar f (Maybe Text)
+  }
   deriving (Generic)
   deriving anyclass (B.Beamable)
 
 type Coffee = CoffeeT Identity
+
 deriving instance Show Coffee
 
-instance ToJSON Coffee
-instance FromJSON Coffee
+instance A.ToJSON Coffee
+
+instance A.FromJSON Coffee
+
 instance ToSchema Coffee
 
 type CoffeeUpdate = CoffeeT Maybe
+
 deriving instance Show CoffeeUpdate
 
-instance FromJSON CoffeeUpdate
-
-exampleCoffee :: Coffee
-exampleCoffee = Coffee "Test" (pure "test test test")
+instance A.FromJSON CoffeeUpdate
 
 instance B.Table CoffeeT where
   data PrimaryKey CoffeeT f = CoffeeId (B.Columnar f Text)
     deriving (Generic)
     deriving anyclass (B.Beamable)
-  primaryKey = CoffeeId . _name
+  primaryKey = CoffeeId . name

@@ -1,50 +1,59 @@
-{-# LANGUAGE TypeOperators       #-}
-{-# LANGUAGE OverloadedStrings   #-}
-{-# LANGUAGE DataKinds           #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TypeOperators #-}
 
-module Roasted.Api 
-    ( Api
-    , RoastedApi 
-    , server
-    , roastedServer ) where
+module Roasted.Api
+  ( Api,
+    RoastedApi,
+    CoffeeReq(CoffeeReq),
+    server,
+    roastedServer,
+  )
+where
 
-import Control.Monad.Reader (asks)
-import Control.Monad.IO.Class (liftIO)
-import Control.Lens ((&), (.~))
-import Data.Swagger (Swagger, info, version, title)
-import Database.Beam.Postgres (runBeamPostgres)
-import Servant (ServerT,  Get, JSON, (:>), (:<|>)(..), PostNoContent, ReqBody, NoContent (NoContent), Proxy(Proxy))
-import Servant.Swagger (toSwagger)
-import Servant.Swagger.UI (swaggerSchemaUIServerT, SwaggerSchemaUI)
-
+import Control.Lens qualified as L
+import GHC.Generics (Generic)
+import Data.Aeson qualified as A
+import Data.Swagger qualified as SW
+import Data.Text (Text)
 import Roasted.Coffee (Coffee)
-import Roasted.Monad (RoastedMonad, connection)
-import Roasted.Domain (selectCoffees, insertCoffee)
+import Roasted.Domain qualified as RD
+import Roasted.Monad (RoastedMonad)
+import Servant qualified as S
+import Servant.Swagger qualified as SSW
+import Servant.Swagger.UI qualified as SSWU
 
-type Api = RoastedApi :<|> SwaggerSchemaUI "swagger-ui" "swagger.json"
+type Api = RoastedApi S.:<|> SSWU.SwaggerSchemaUI "swagger-ui" "swagger.json"
 
-swaggerDoc :: Swagger
-swaggerDoc = toSwagger (Proxy :: Proxy RoastedApi)
-    & info.title       .~ "RoastedApi"
-    & info.version     .~ "2024.01.27"
+swaggerDoc :: SW.Swagger
+swaggerDoc =
+  SSW.toSwagger (S.Proxy :: S.Proxy RoastedApi)
+    L.& SW.info . SW.title L..~ "RoastedApi"
+    L.& SW.info . SW.version L..~ "2024.01.27"
 
-server :: ServerT Api RoastedMonad
-server = roastedServer :<|> swaggerSchemaUIServerT swaggerDoc
+server :: S.ServerT Api RoastedMonad
+server = roastedServer S.:<|> SSWU.swaggerSchemaUIServerT swaggerDoc
 
-type RoastedApi = "coffee" :> 
-    (Get '[JSON] [Coffee]
-    :<|> ReqBody '[JSON] Coffee :> PostNoContent )
+type RoastedApi =
+  "coffee"
+    S.:> ( S.Get '[S.JSON] [Coffee]
+           S.:<|> S.ReqBody '[S.JSON] CoffeeReq S.:> S.PostNoContent
+       )
 
-roastedServer :: ServerT RoastedApi RoastedMonad
-roastedServer = coffeeAll :<|> coffeeInsert
+data CoffeeReq = CoffeeReq
+  { name :: Text
+  , description :: Maybe Text } deriving (Generic)
 
-coffeeInsert :: Coffee -> RoastedMonad NoContent
-coffeeInsert coffee = do
-  conn <- asks connection
-  liftIO $ runBeamPostgres conn $ insertCoffee coffee
-  pure NoContent
+
+instance SW.ToSchema CoffeeReq
+instance A.FromJSON CoffeeReq
+instance A.ToJSON CoffeeReq
+
+roastedServer :: S.ServerT RoastedApi RoastedMonad
+roastedServer = coffeeAll S.:<|> coffeeInsert
+
+coffeeInsert :: CoffeeReq -> RoastedMonad S.NoContent
+coffeeInsert coffee = (RD.insertCoffee <$> name <*> description) coffee >> pure S.NoContent
 
 coffeeAll :: RoastedMonad [Coffee]
-coffeeAll = do
-  conn <- asks connection
-  liftIO $ runBeamPostgres conn selectCoffees
+coffeeAll = RD.selectCoffees
