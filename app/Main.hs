@@ -6,7 +6,7 @@ module Main
   )
 where
 
-import Control.Monad.Reader qualified as Mr
+import Control.Monad.Reader qualified as MR
 import Network.Wai (Application)
 import Network.Wai.Handler.Warp (run)
 import Roasted.Api.Api qualified as RA
@@ -18,7 +18,7 @@ api :: S.Proxy RA.Api
 api = S.Proxy
 
 app :: RM.Env -> Application
-app env = S.serve api $ S.hoistServer api (`Mr.runReaderT` env) RA.server
+app env = S.serve api $ S.hoistServer api (`MR.runReaderT` env) RA.server
 
 main :: IO ()
 main = do

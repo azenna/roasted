@@ -7,6 +7,7 @@ import Network.HTTP.Client qualified as Nhc
 import Network.Wai.Handler.Warp qualified as Warp
 import Network.Wai (Application)
 import Roasted.Api.Coffee qualified as RAC
+import Roasted.Domain.Schema qualified as RDS
 import Roasted.Config qualified as RC
 import Roasted.Monad qualified as RM
 import Servant qualified as S
@@ -34,11 +35,12 @@ coffee = do
     manager <- H.runIO $ Nhc.newManager Nhc.defaultManagerSettings
 
     let clientEnv port = S.mkClientEnv manager (baseUrl {S.baseUrlPort = port})
+        req = RAC.CoffeeReq "Unique" (Just "it's working?")
 
     H.describe "POST /coffee" $ do
       H.it "Should create a coffee" $ \port -> do
-        result <- S.runClientM (createCoffee (RAC.CoffeeReq "Unique" (Just "it's working?"))) (clientEnv port)
-        result `H.shouldBe` Right S.NoContent
+        result <- S.runClientM (createCoffee req) (clientEnv port)
+        RDS.name <$> result `H.shouldBe` Right "Unique"
 
     H.describe "GET /coffee" $ do
       H.it "Should fetch all coffees" $ \port -> do

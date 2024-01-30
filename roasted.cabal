@@ -18,11 +18,11 @@ library
 
     exposed-modules:    Roasted.Api.Api
                       , Roasted.Api.Coffee
+                      , Roasted.Domain.Schema
                       , Roasted.Config
                       , Roasted.Monad
 
     other-modules:      Roasted.Domain.Coffee
-                      , Roasted.Domain.Schema
                       , Roasted.Domain.Util
 
     -- Other library packages from which modules are imported.

@@ -7,6 +7,9 @@ module Roasted.Domain.Schema
     , Coffee
     , RoastedDb
     , _coffee
+    , coffeeId
+    , description
+    , name
     , mkCoffeeId
     , roastedDb ) where
 

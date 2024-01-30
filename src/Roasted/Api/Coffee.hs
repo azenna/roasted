@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module Roasted.Api.Coffee
   ( CoffeeApi,
@@ -20,8 +21,9 @@ import Servant qualified as S
 type CoffeeApi =
   "coffee"
     S.:> ( S.Get '[S.JSON] [RDS.Coffee]
-           S.:<|> S.ReqBody '[S.JSON] CoffeeReq S.:> S.PostNoContent
+           S.:<|> S.ReqBody '[S.JSON] CoffeeReq S.:> S.Post '[S.JSON] RDS.Coffee
            S.:<|> S.Capture "coffee_id" Int64 S.:> S.Get '[S.JSON] RDS.Coffee
+           S.:<|> S.Capture "coffee_id" Int64 S.:> S.ReqBody '[S.JSON] CoffeeReq S.:> S.Post '[S.JSON] RDS.Coffee
        )
 
 data CoffeeReq = CoffeeReq
@@ -33,7 +35,7 @@ instance A.FromJSON CoffeeReq
 instance A.ToJSON CoffeeReq
 
 coffeeServer :: S.ServerT CoffeeApi RoastedMonad
-coffeeServer = RDC.getCoffees S.:<|> createCoffee S.:<|> retrieveCoffee
+coffeeServer = RDC.getCoffees S.:<|> createCoffee S.:<|> retrieveCoffee S.:<|> updateCoffee
 
 retrieveCoffee :: Int64 -> RoastedMonad RDS.Coffee
 retrieveCoffee coffeeId = do
@@ -42,6 +44,13 @@ retrieveCoffee coffeeId = do
       Just c -> pure c
       Nothing -> S.throwError S.err404
 
+updateCoffee :: Int64 -> CoffeeReq -> RoastedMonad RDS.Coffee
+updateCoffee coffeeId req = do
+    coffee <- retrieveCoffee coffeeId
+    let updated = coffee { RDS.name = name req, RDS.description = description req}
+    RDC.updateCoffee updated
+    pure updated
 
-createCoffee :: CoffeeReq -> RoastedMonad S.NoContent
-createCoffee coffee = (RDC.insertCoffee <$> name <*> description) coffee >> pure S.NoContent
+
+createCoffee :: CoffeeReq -> RoastedMonad RDS.Coffee
+createCoffee coffee = (RDC.insertCoffee <$> name <*> description) coffee
