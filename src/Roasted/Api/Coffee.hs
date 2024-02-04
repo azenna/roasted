@@ -9,14 +9,12 @@ module Roasted.Api.Coffee
 where
 
 import qualified Barbies.Bare           as B
-import           Control.Monad.IO.Class (liftIO)
-import           Control.Monad.Reader   (asks)
 import qualified Data.Functor.Barbie    as B
 import           Data.Int               (Int64)
-import           Hasql.Session          as HSE
 import qualified Roasted.Domain.Coffee  as RDC
 import qualified Roasted.Monad          as RM
 import qualified Servant                as S
+import Roasted.Api.Util qualified as RAU
 
 type Retrieves = S.Get '[S.JSON] [RDC.Coffee]
 
@@ -46,35 +44,29 @@ coffeeServer = retrieveCoffees S.:<|> retrieveCoffee S.:<|> createCoffee  S.:<|>
 
 retrieveCoffees :: RM.RoastedMonad [RDC.Coffee]
 retrieveCoffees = do
-  conn <- asks RM.connection
-  resp <- liftIO $ HSE.run (HSE.statement () RDC.retrieveCoffeesStatement) conn
-  either (const $ S.throwError S.err500) pure resp
+  resp <- RAU.runSingleStatement () RDC.retrieveCoffeesStatement 
+  RAU.respOr500 resp
 
 retrieveCoffee :: Int64 -> RM.RoastedMonad RDC.Coffee
 retrieveCoffee coffeeId = do
-  conn <- asks RM.connection
-  resp <- liftIO $ HSE.run (HSE.statement coffeeId RDC.retrieveCoffeeStatement) conn
-  either (const $ S.throwError S.err500) (maybe (S.throwError S.err404) pure) resp
+  resp <- RAU.runSingleStatement coffeeId RDC.retrieveCoffeeStatement
+  RAU.fromRespOr500 (maybe (S.throwError S.err404) pure) resp
 
 createCoffee :: RDC.CoffeeReq -> RM.RoastedMonad RDC.Coffee
 createCoffee coffee = do
-  conn <- asks RM.connection
   values <- maybe (S.throwError S.err400) pure $ RDC.parseCoffeeReq coffee 
-  resp <- liftIO $ HSE.run (HSE.statement values RDC.createCoffeeStatement) conn
-  either (const $ S.throwError S.err500) pure resp
+  resp <- RAU.runSingleStatement values RDC.createCoffeeStatement
+  RAU.respOr500 resp
 
 updateCoffee :: Int64 -> RDC.CoffeeReq -> RM.RoastedMonad RDC.Coffee
 updateCoffee coffeeId update = do
-  conn <- asks RM.connection
   coffee <- retrieveCoffee coffeeId
 
   let new = B.bstrip $ B.bzipWith (\m d -> maybe d pure m) update (B.bcover coffee)
-
-  resp <- liftIO $ HSE.run (HSE.statement (coffeeId, new) RDC.updateCoffeeStatement) conn
-  either (const $ S.throwError S.err500) pure resp
+  resp <- RAU.runSingleStatement (coffeeId, new) RDC.updateCoffeeStatement
+  RAU.respOr500 resp
 
 deleteCoffee :: Int64 -> RM.RoastedMonad S.NoContent
 deleteCoffee coffeeId = do
-  conn <- asks RM.connection
-  resp <- liftIO $ HSE.run (HSE.statement coffeeId RDC.deleteCoffeeStatement) conn
-  either (const $ S.throwError S.err500) (const $ pure S.NoContent) resp
+  resp <- RAU.runSingleStatement coffeeId RDC.deleteCoffeeStatement
+  RAU.fromRespOr500 (const $ pure S.NoContent) resp

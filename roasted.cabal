@@ -21,6 +21,7 @@ library
                       , Roasted.Domain.Coffee
                       , Roasted.Config
                       , Roasted.Monad
+    other-modules:      Roasted.Api.Util
 
     -- Other library packages from which modules are imported.
     build-depends:    base ^>=4.17.2.1
