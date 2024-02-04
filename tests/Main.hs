@@ -1,24 +1,25 @@
 {-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-import qualified Barbies.Bare             as B
-import           Control.Monad            (join)
-import qualified Control.Monad.IO.Class   as MIO
-import qualified Control.Monad.Reader     as MR
-import           Data.Either              (fromRight)
-import qualified Data.Functor.Barbie      as B
-import           Data.Functor.Identity    (Identity (Identity))
-import qualified Network.HTTP.Client      as Nhc
-import           Network.Wai              (Application)
-import qualified Network.Wai.Handler.Warp as Warp
-import qualified Roasted.Api.Coffee       as RAC
-import qualified Roasted.Config           as RC
-import qualified Roasted.Domain.Coffee    as RDC
-import qualified Roasted.Monad            as RM
-import qualified Servant                  as S
-import qualified Servant.Client           as S
-import           Servant.Client           (runClientM)
-import qualified Test.Hspec               as H
+import qualified Barbies.Bare               as B
+import           Control.Monad              (join)
+import qualified Control.Monad.IO.Class     as MIO
+import qualified Control.Monad.Reader       as MR
+import qualified Control.Monad.Trans.Except as TE
+import           Data.Either                (fromRight)
+import qualified Data.Functor.Barbie        as B
+import           Data.Functor.Identity      (Identity (Identity))
+import qualified Network.HTTP.Client        as Nhc
+import           Network.Wai                (Application)
+import qualified Network.Wai.Handler.Warp   as Warp
+import qualified Roasted.Api.Coffee         as RAC
+import qualified Roasted.Config             as RC
+import qualified Roasted.Domain.Coffee      as RDC
+import qualified Roasted.Monad              as RM
+import qualified Servant                    as S
+import qualified Servant.Client             as S
+import           Servant.Client             (runClientM)
+import qualified Test.Hspec                 as H
 
 api :: S.Proxy RAC.CoffeeApi
 api = S.Proxy
@@ -66,14 +67,20 @@ coffee = do
 
        H.it "Should retrieve a coffee" $ do
          let cId = RDC.coffeeId <$> coffee
-         result <- join <$> sequence (flip S.runClientM cEnv . retrieveCoffee <$> cId)
+             action = do
+               cId <- TE.ExceptT (pure cId)
+               TE.ExceptT (S.runClientM (retrieveCoffee cId) cEnv)
+         result <- TE.runExceptT action
          result `H.shouldBe` RDC.Coffee  <$> cId <*> pure "Unique" <*> pure (Just "it's working?")
 
       H.describe "Update coffee" $ do
         H.it "Should update a coffee" $ do
           let cId = RDC.coffeeId <$> coffee
               update = RDC.Coffee Nothing (Just "Ununique") Nothing
-          result <- join <$> sequence (flip S.runClientM cEnv . flip updateCoffee update <$> cId)
+              action = do
+                cId <- TE.ExceptT (pure cId)
+                TE.ExceptT (S.runClientM (updateCoffee cId update) cEnv)
+          result <- TE.runExceptT action
           result `H.shouldBe` RDC.Coffee <$> cId <*> pure "Ununique" <*> pure (Just "it's working?")
 
 main :: IO ()
