@@ -31,7 +31,7 @@ data Env = Env { clientEnv :: S.ClientEnv }
 
 type TestHandler = MR.ReaderT Env IO
 
-retrieveCoffees S.:<|> retrieveCoffee S.:<|> createCoffee S.:<|> updateCoffee = S.client api
+retrieveCoffees S.:<|> retrieveCoffee S.:<|> createCoffee S.:<|> updateCoffee S.:<|> deleteCoffee = S.client api
 
 coffee :: TestHandler H.Spec
 coffee = do
@@ -51,7 +51,7 @@ coffee = do
         H.it "Should create a coffee" $ do
           RDC.name <$> coffee `H.shouldBe` Right "Unique"
 
-        H.it "Should try to create coffee with null name and fail" $ \port -> do
+        H.it "Should try to create coffee with null name and fail" $ do
           result <-
             S.runClientM
               (createCoffee (RDC.Coffee Nothing  Nothing Nothing))
@@ -82,6 +82,29 @@ coffee = do
                 TE.ExceptT (S.runClientM (updateCoffee cId update) cEnv)
           result <- TE.runExceptT action
           result `H.shouldBe` RDC.Coffee <$> cId <*> pure "Ununique" <*> pure (Just "it's working?")
+
+      H.sequential $ H.describe "Delete coffee" $ do
+
+        let cId = RDC.coffeeId <$> coffee
+
+        H.it "Should delete a coffee" $ do
+          let 
+            action = do
+              cId <- TE.ExceptT (pure cId)
+              TE.ExceptT (S.runClientM (deleteCoffee cId) cEnv)
+          result <- TE.runExceptT action
+          result `H.shouldBe` Right S.NoContent
+
+        H.it "Coffee should no longer exist" $ do
+          let 
+            action = do
+              cId <- TE.ExceptT (pure cId)
+              TE.ExceptT (S.runClientM (retrieveCoffee cId) cEnv)
+          result <- TE.runExceptT action
+          result `H.shouldSatisfy` \case
+              Left (S.FailureResponse _ (S.Response err404 _ _ _ )) -> True
+              Right _ -> False
+
 
 main :: IO ()
 main = do

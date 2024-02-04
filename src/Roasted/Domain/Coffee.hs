@@ -15,6 +15,7 @@ module Roasted.Domain.Coffee
     retrieveCoffeeStatement,
     createCoffeeStatement,
     updateCoffeeStatement,
+    deleteCoffeeStatement,
     parseCoffeeReq,
   )
 where
@@ -53,8 +54,6 @@ instance B.ConstraintsB (CoffeeHT B.Covered)
 deriving instance (B.AllBF Show f (CoffeeHT B.Covered)) => Show (CoffeeHT B.Covered f)
 
 deriving instance (B.AllBF Eq f (CoffeeHT B.Covered)) => Eq (CoffeeHT B.Covered f)
-
--- deriving instance (B.AllBF A.FromJSON f (CoffeeHT B.Covered)) => A.FromJSON (CoffeeHT B.Covered f)
 
 type Coffee = CoffeeHT B.Bare I.Identity
 
@@ -107,8 +106,8 @@ retrieveCoffeesStatement = HS.Statement sql HE.noParams (HD.rowList coffeeDecode
   where
     sql = "select * from coffee"
 
-retrieveCoffeeStatement :: HS.Statement Int64 Coffee
-retrieveCoffeeStatement = HS.Statement sql coffeeIdEncoder (HD.singleRow coffeeDecoder) True
+retrieveCoffeeStatement :: HS.Statement Int64 (Maybe Coffee)
+retrieveCoffeeStatement = HS.Statement sql coffeeIdEncoder (HD.rowMaybe coffeeDecoder) True
   where
     sql = "select * from coffee where id = $1"
 
@@ -123,5 +122,10 @@ createCoffeeStatement = HS.Statement sql encoder (HD.singleRow coffeeDecoder) Tr
 updateCoffeeStatement :: HS.Statement (Int64, Coffee) Coffee
 updateCoffeeStatement = HS.Statement sql encoder (HD.singleRow coffeeDecoder) True
   where
-      sql = "update coffee set name = $3, description = $4 where id = $1 returning *"
-      encoder = (fst >$< coffeeIdEncoder) <> (snd >$< coffeeEncoder)
+    sql = "update coffee set name = $3, description = $4 where id = $1 returning *"
+    encoder = (fst >$< coffeeIdEncoder) <> (snd >$< coffeeEncoder)
+
+deleteCoffeeStatement :: HS.Statement Int64 ()
+deleteCoffeeStatement = HS.Statement sql coffeeIdEncoder HD.noResult  True
+  where
+    sql = "delete from coffee where id = $1"
