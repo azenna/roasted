@@ -1,18 +1,19 @@
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Roasted.Api.Api
   ( Api,
-    server
-  ) where
+    server,
+  )
+where
 
 import Control.Lens qualified as L
 import Data.Swagger qualified as SW
+import Roasted.Api.Coffee (CoffeeApi, coffeeServer)
+import Roasted.Monad (RoastedMonad)
+import Servant qualified as S
 import Servant.Swagger qualified as SSW
 import Servant.Swagger.UI qualified as SSWU
-import Servant qualified as S
-import Roasted.Api.Coffee ( CoffeeApi, coffeeServer )
-import Roasted.Monad (RoastedMonad)
 
 type Api = CoffeeApi S.:<|> SSWU.SwaggerSchemaUI "swagger-ui" "swagger.json"
 

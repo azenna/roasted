@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Roasted.Monad
   ( Env (Env),
     RoastedMonad,
@@ -7,24 +9,15 @@ module Roasted.Monad
 where
 
 import Control.Monad.Reader (ReaderT)
-import Database.PostgreSQL.Simple (Connection)
-import Database.PostgreSQL.Simple qualified as SQL
-import qualified Roasted.Config as RC
+import Hasql.Connection as HC
+import Roasted.Config qualified as RC
 import Servant (Handler)
 
 data Env = Env {connection :: Connection}
 
 envFromConfig :: RC.Config -> IO Env
 envFromConfig config = do
-  conn <-
-    SQL.connect $
-      SQL.defaultConnectInfo
-        { SQL.connectHost = "localhost",
-          SQL.connectPort = (fromIntegral $ RC.postgresPort config),
-          SQL.connectDatabase = "postgres",
-          SQL.connectUser = "postgres",
-          SQL.connectPassword = "password"
-        }
+  Right conn <- HC.acquire $ HC.settings "localhost" (fromIntegral $ RC.postgresPort config) "postgres" "password" "postgres"
   pure $ Env conn
 
 type RoastedMonad = ReaderT Env Handler

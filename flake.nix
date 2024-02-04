@@ -38,6 +38,7 @@
         shellHook =
          '' 
          source .env 
+         alias ormolu="ormolu --mode inplace \$(find . -name '*.hs')"
          '';
       };
     });

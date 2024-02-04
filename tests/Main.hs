@@ -1,57 +1,77 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE LambdaCase #-}
 
-import Control.Monad.IO.Class qualified as Mio
-import Control.Monad.Reader qualified as Mr
+import Control.Monad.IO.Class qualified as MIO
+import Control.Monad.Reader qualified as MR
 import Data.Either (fromRight)
 import Network.HTTP.Client qualified as Nhc
-import Network.Wai.Handler.Warp qualified as Warp
 import Network.Wai (Application)
+import Network.Wai.Handler.Warp qualified as Warp
 import Roasted.Api.Coffee qualified as RAC
-import Roasted.Domain.Schema qualified as RDS
 import Roasted.Config qualified as RC
+import Roasted.Domain.Coffee qualified as RDC
 import Roasted.Monad qualified as RM
 import Servant qualified as S
 import Servant.Client qualified as S
 import Test.Hspec qualified as H
+import qualified Network.Wai.Handler.Warp as Warp
 
 api :: S.Proxy RAC.CoffeeApi
 api = S.Proxy
 
 app :: RM.Env -> Application
-app env = S.serve api $ S.hoistServer api (`Mr.runReaderT` env) RAC.coffeeServer
+app env = S.serve api $ S.hoistServer api (`MR.runReaderT` env) RAC.coffeeServer
 
-type TestHandler = Mr.ReaderT Application IO
+data Env = Env { clientEnv :: S.ClientEnv }
 
-retrieveCoffees S.:<|> createCoffee S.:<|> retrieveCoffee = S.client api
+type TestHandler = MR.ReaderT Env IO
+
+retrieveCoffees S.:<|> retrieveCoffee S.:<|> createCoffee S.:<|> updateCoffee = S.client api
 
 coffee :: TestHandler H.Spec
 coffee = do
-  withApp <- Mr.asks (Warp.testWithApplication . pure)
+    cEnv <- MR.asks clientEnv
 
-  pure $ H.around withApp $ do
-    let roasted = S.client api
+    coffee <- MR.liftIO $
+      S.runClientM 
+        (createCoffee 
+          (RDC.Coffee 
+            Nothing 
+            (pure "Unique") 
+            (pure $ pure "it's working?"))) 
+        cEnv
 
-    baseUrl <- H.runIO $ S.parseBaseUrl "http://localhost"
-    manager <- H.runIO $ Nhc.newManager Nhc.defaultManagerSettings
+    pure $ do
+      H.describe "POST /coffee" $ do
+        H.it "Should create a coffee" $ do
+          RDC.name <$> coffee `H.shouldBe` Right "Unique"
 
-    let clientEnv port = S.mkClientEnv manager (baseUrl {S.baseUrlPort = port})
-        req = RAC.CoffeeReq "Unique" (Just "it's working?")
+        H.it "Should try to create coffee with null name and fail" $ \port -> do
+          result <- 
+            S.runClientM 
+              (createCoffee (RDC.Coffee Nothing  Nothing Nothing))
+              cEnv
+          result `H.shouldSatisfy` \case
+              Left (S.FailureResponse _ _) -> True
+              Right _ -> False
 
-    H.describe "POST /coffee" $ do
-      H.it "Should create a coffee" $ \port -> do
-        result <- S.runClientM (createCoffee req) (clientEnv port)
-        RDS.name <$> result `H.shouldBe` Right "Unique"
-
-    H.describe "GET /coffee" $ do
-      H.it "Should fetch all coffees" $ \port -> do
-        result <- S.runClientM retrieveCoffees (clientEnv port)
-        result `H.shouldSatisfy` fromRight False . fmap ((>=1) . length)
+      H.describe "GET /coffee" $ do
+       H.it "Should fetch all coffees" $ do
+         result <- S.runClientM retrieveCoffees cEnv
+         result `H.shouldSatisfy` either (const False) (not . null)
 
 main :: IO ()
 main = do
   config <- RC.getConfig
-  env <- RM.envFromConfig config
+  appEnv <- RM.envFromConfig config
 
-  spec <- Mr.runReaderT coffee (app env)
+  baseUrl <-  S.parseBaseUrl "http://localhost"
+  manager <-  Nhc.newManager Nhc.defaultManagerSettings
 
-  H.hspec spec
+  Warp.testWithApplication (pure $ app appEnv) $ \port -> do
+
+    let clientEnv = S.mkClientEnv manager (baseUrl {S.baseUrlPort = port})
+        testEnv = Env clientEnv
+
+    spec <- MR.runReaderT coffee testEnv
+    H.hspec spec

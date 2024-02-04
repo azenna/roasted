@@ -18,21 +18,18 @@ library
 
     exposed-modules:    Roasted.Api.Api
                       , Roasted.Api.Coffee
-                      , Roasted.Domain.Schema
+                      , Roasted.Domain.Coffee
                       , Roasted.Config
                       , Roasted.Monad
-
-    other-modules:      Roasted.Domain.Coffee
-                      , Roasted.Domain.Util
 
     -- Other library packages from which modules are imported.
     build-depends:    base ^>=4.17.2.1
                     , aeson ^>= 2.1.0.0
-                    , beam-core ^>= 0.10.0.0
-                    , beam-postgres ^>= 0.5.3.0
+                    , barbies ^>= 2.0.2
+                    , hasql ^>= 1.6.4
+                    , higgledy ^>= 0.4.2
                     , lens ^>= 5.2.3
                     , mtl ^>= 2.2.2
-                    , postgresql-simple ^>= 0.6.0.0
                     , servant ^>= 0.20
                     , servant-server ^>= 0.20
                     , servant-swagger ^>= 1.2
