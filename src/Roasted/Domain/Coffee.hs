@@ -1,6 +1,6 @@
-{-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE DerivingStrategies   #-}
+{-# LANGUAGE OverloadedStrings    #-}
+{-# LANGUAGE TypeFamilies         #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 module Roasted.Domain.Coffee
@@ -19,23 +19,23 @@ module Roasted.Domain.Coffee
   )
 where
 
-import Barbies.Bare qualified as B
-import Control.Monad (join)
-import Data.Aeson qualified as A
-import Data.Functor.Barbie qualified as B
-import Data.Functor.Contravariant ((>$<))
-import Data.Functor.Identity qualified as I
-import Data.Int (Int64)
-import Data.Swagger (ToSchema)
-import Data.Text (Text)
-import GHC.Generics (Generic)
-import Hasql.Decoders qualified as HD
-import Hasql.Encoders qualified as HE
-import Hasql.Statement as HS
+import qualified Barbies.Bare               as B
+import           Control.Monad              (join)
+import qualified Data.Aeson                 as A
+import qualified Data.Functor.Barbie        as B
+import           Data.Functor.Contravariant ((>$<))
+import qualified Data.Functor.Identity      as I
+import           Data.Int                   (Int64)
+import           Data.Swagger               (ToSchema)
+import           Data.Text                  (Text)
+import           GHC.Generics               (Generic)
+import qualified Hasql.Decoders             as HD
+import qualified Hasql.Encoders             as HE
+import           Hasql.Statement            as HS
 
 data CoffeeHT t f = Coffee
-  { coffeeId :: B.Wear t f Int64,
-    name :: B.Wear t f Text,
+  { coffeeId    :: B.Wear t f Int64,
+    name        :: B.Wear t f Text,
     description :: B.Wear t f (Maybe Text)
   }
   deriving (Generic)
@@ -59,6 +59,7 @@ deriving instance (B.AllBF Eq f (CoffeeHT B.Covered)) => Eq (CoffeeHT B.Covered 
 type Coffee = CoffeeHT B.Bare I.Identity
 
 deriving instance Show Coffee
+deriving instance Eq Coffee
 
 instance ToSchema Coffee
 
@@ -122,5 +123,5 @@ createCoffeeStatement = HS.Statement sql encoder (HD.singleRow coffeeDecoder) Tr
 updateCoffeeStatement :: HS.Statement (Int64, Coffee) Coffee
 updateCoffeeStatement = HS.Statement sql encoder (HD.singleRow coffeeDecoder) True
   where
-    sql = "delete from coffee where id = $1; insert into coffee * values $2 returning *"
-    encoder = (fst >$< coffeeIdEncoder) <> (snd >$< coffeeEncoder)
+      sql = "update coffee set name = $3, description = $4 where id = $1 returning *"
+      encoder = (fst >$< coffeeIdEncoder) <> (snd >$< coffeeEncoder)

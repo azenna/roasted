@@ -67,6 +67,7 @@ test-suite tests
     main-is:            Main.hs
     hs-source-dirs:     tests
     build-depends:      base ^>=4.17.2.1 
+                      , barbies ^>= 2.0.2
                       , roasted
                       , hspec ^>= 2.11.7
                       , hspec-wai ^>= 0.11

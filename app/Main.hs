@@ -6,13 +6,13 @@ module Main
   )
 where
 
-import Control.Monad.Reader qualified as MR
-import Network.Wai (Application)
-import Network.Wai.Handler.Warp (run)
-import Roasted.Api.Api qualified as RA
-import Roasted.Config qualified as RC
-import Roasted.Monad qualified as RM
-import Servant qualified as S
+import qualified Control.Monad.Reader     as MR
+import           Network.Wai              (Application)
+import           Network.Wai.Handler.Warp (run)
+import qualified Roasted.Api.Api          as RA
+import qualified Roasted.Config           as RC
+import qualified Roasted.Monad            as RM
+import qualified Servant                  as S
 
 api :: S.Proxy RA.Api
 api = S.Proxy

@@ -8,10 +8,10 @@ module Roasted.Monad
   )
 where
 
-import Control.Monad.Reader (ReaderT)
-import Hasql.Connection as HC
-import Roasted.Config qualified as RC
-import Servant (Handler)
+import           Control.Monad.Reader (ReaderT)
+import           Hasql.Connection     as HC
+import qualified Roasted.Config       as RC
+import           Servant              (Handler)
 
 data Env = Env {connection :: Connection}
 

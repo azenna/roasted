@@ -1,20 +1,24 @@
+{-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE LambdaCase #-}
 
-import Control.Monad.IO.Class qualified as MIO
-import Control.Monad.Reader qualified as MR
-import Data.Either (fromRight)
-import Network.HTTP.Client qualified as Nhc
-import Network.Wai (Application)
-import Network.Wai.Handler.Warp qualified as Warp
-import Roasted.Api.Coffee qualified as RAC
-import Roasted.Config qualified as RC
-import Roasted.Domain.Coffee qualified as RDC
-import Roasted.Monad qualified as RM
-import Servant qualified as S
-import Servant.Client qualified as S
-import Test.Hspec qualified as H
+import qualified Barbies.Bare             as B
+import           Control.Monad            (join)
+import qualified Control.Monad.IO.Class   as MIO
+import qualified Control.Monad.Reader     as MR
+import           Data.Either              (fromRight)
+import qualified Data.Functor.Barbie      as B
+import           Data.Functor.Identity    (Identity (Identity))
+import qualified Network.HTTP.Client      as Nhc
+import           Network.Wai              (Application)
 import qualified Network.Wai.Handler.Warp as Warp
+import qualified Roasted.Api.Coffee       as RAC
+import qualified Roasted.Config           as RC
+import qualified Roasted.Domain.Coffee    as RDC
+import qualified Roasted.Monad            as RM
+import qualified Servant                  as S
+import qualified Servant.Client           as S
+import           Servant.Client           (runClientM)
+import qualified Test.Hspec               as H
 
 api :: S.Proxy RAC.CoffeeApi
 api = S.Proxy
@@ -33,32 +37,44 @@ coffee = do
     cEnv <- MR.asks clientEnv
 
     coffee <- MR.liftIO $
-      S.runClientM 
-        (createCoffee 
-          (RDC.Coffee 
-            Nothing 
-            (pure "Unique") 
-            (pure $ pure "it's working?"))) 
+      S.runClientM
+        (createCoffee
+          (RDC.Coffee
+            Nothing
+            (pure "Unique")
+            (pure $ pure "it's working?")))
         cEnv
 
     pure $ do
-      H.describe "POST /coffee" $ do
+      H.describe "Create coffee" $ do
         H.it "Should create a coffee" $ do
           RDC.name <$> coffee `H.shouldBe` Right "Unique"
 
         H.it "Should try to create coffee with null name and fail" $ \port -> do
-          result <- 
-            S.runClientM 
+          result <-
+            S.runClientM
               (createCoffee (RDC.Coffee Nothing  Nothing Nothing))
               cEnv
           result `H.shouldSatisfy` \case
               Left (S.FailureResponse _ _) -> True
               Right _ -> False
 
-      H.describe "GET /coffee" $ do
-       H.it "Should fetch all coffees" $ do
+      H.describe "Retrieve coffee" $ do
+       H.it "Should retrieve all coffees" $ do
          result <- S.runClientM retrieveCoffees cEnv
          result `H.shouldSatisfy` either (const False) (not . null)
+
+       H.it "Should retrieve a coffee" $ do
+         let cId = RDC.coffeeId <$> coffee
+         result <- join <$> sequence (flip S.runClientM cEnv . retrieveCoffee <$> cId)
+         result `H.shouldBe` RDC.Coffee  <$> cId <*> pure "Unique" <*> pure (Just "it's working?")
+
+      H.describe "Update coffee" $ do
+        H.it "Should update a coffee" $ do
+          let cId = RDC.coffeeId <$> coffee
+              update = RDC.Coffee Nothing (Just "Ununique") Nothing
+          result <- join <$> sequence (flip S.runClientM cEnv . flip updateCoffee update <$> cId)
+          result `H.shouldBe` RDC.Coffee <$> cId <*> pure "Ununique" <*> pure (Just "it's working?")
 
 main :: IO ()
 main = do

@@ -1,9 +1,9 @@
 module Roasted.Config (Config (Config), apiPort, postgresPort, getConfig) where
 
-import System.Environment (lookupEnv)
+import           System.Environment (lookupEnv)
 
 data Config = Config
-  { apiPort :: Int,
+  { apiPort      :: Int,
     postgresPort :: Int
   }
 

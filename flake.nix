@@ -25,7 +25,7 @@
 
         # development tools we use
         nativeBuildInputs = with pkgs; [
-          ormolu
+          stylish-haskell
           alejandra
           cabal-install
           cabal2nix
@@ -38,7 +38,7 @@
         shellHook =
          '' 
          source .env 
-         alias ormolu="ormolu --mode inplace \$(find . -name '*.hs')"
+         alias stylish-haskell="stylish-haskell -i \$(find . -name '*.hs')"
          '';
       };
     });
