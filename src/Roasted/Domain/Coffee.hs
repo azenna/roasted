@@ -1,5 +1,6 @@
 {-# LANGUAGE DerivingStrategies   #-}
 {-# LANGUAGE OverloadedStrings    #-}
+{-# LANGUAGE QuasiQuotes          #-}
 {-# LANGUAGE TypeFamilies         #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -33,6 +34,7 @@ import           GHC.Generics               (Generic)
 import qualified Hasql.Decoders             as HD
 import qualified Hasql.Encoders             as HE
 import           Hasql.Statement            as HS
+import qualified Hasql.TH                   as HT
 
 data CoffeeHT t f = Coffee
   { coffeeId    :: B.Wear t f Int64,
@@ -89,17 +91,41 @@ coffeeIdEncoder :: HE.Params Int64
 coffeeIdEncoder = HE.param (HE.nonNullable HE.int8)
 
 coffeeEncoder :: HE.Params Coffee
-coffeeEncoder =
-  (coffeeId >$< coffeeIdEncoder)
-    <> (name >$< HE.param (HE.nonNullable HE.text))
-    <> (description >$< HE.param (HE.nullable HE.text))
+coffeeEncoder = encodeGyro coffeeGyro
 
 coffeeDecoder :: HD.Row Coffee
-coffeeDecoder =
-  Coffee
-    <$> HD.column (HD.nonNullable HD.int8)
-    <*> HD.column (HD.nonNullable HD.text)
-    <*> HD.column (HD.nullable HD.text)
+coffeeDecoder = decodeGyro coffeeGyro
+
+data Gyro s a = Gyro
+    { gyroName :: String
+    , encoder  :: HE.Params a
+    , decoder  :: HD.Row a
+    , selector :: s -> a
+    }
+
+decodeGyro :: (B.BareB h, B.FunctorB (h B.Covered), B.TraversableB (h B.Covered)) 
+           => h B.Covered (Gyro (h B.Bare I.Identity)) 
+           -> HD.Row (h B.Bare I.Identity)
+decodeGyro hkd = B.bstrip <$> B.bsequence' (B.bmap decoder hkd)
+
+encodeGyro :: (B.TraversableB (h B.Covered)) 
+           => h B.Covered (Gyro (h B.Bare I.Identity)) 
+           -> HE.Params (h B.Bare I.Identity)
+encodeGyro = B.bfoldMap ((>$<) <$> selector <*> encoder)
+
+nullable :: String -> HE.Value a -> HD.Value a -> (s -> Maybe a) -> Gyro s (Maybe a)
+nullable s enc dec = Gyro s  (HE.param $ HE.nullable enc) (HD.column $ HD.nullable dec)
+
+required :: String -> HE.Value a -> HD.Value a -> (s -> a) -> Gyro s a
+required s enc dec = Gyro s (HE.param $ HE.nonNullable enc) (HD.column $ HD.nonNullable dec)
+
+coffeeGyro :: CoffeeH (Gyro Coffee)
+coffeeGyro =
+  Coffee {
+    coffeeId = required "coffeeId" HE.int8 HD.int8 (coffeeId :: Coffee -> Int64),
+    name = required "name" HE.text HD.text (name :: Coffee -> Text),
+    description = nullable "description" HE.text HD.text (description :: Coffee -> Maybe Text)
+  }
 
 retrieveCoffeesStatement :: HS.Statement () [Coffee]
 retrieveCoffeesStatement = HS.Statement sql HE.noParams (HD.rowList coffeeDecoder) True

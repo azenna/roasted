@@ -28,7 +28,7 @@ library
                     , aeson ^>= 2.1.0.0
                     , barbies ^>= 2.0.2
                     , hasql ^>= 1.6.4
-                    , higgledy ^>= 0.4.2
+                    , hasql-th ^>= 0.4.0.19
                     , lens ^>= 5.2.3
                     , mtl ^>= 2.2.2
                     , servant ^>= 0.20

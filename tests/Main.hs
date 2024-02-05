@@ -88,7 +88,7 @@ coffee = do
         let cId = RDC.coffeeId <$> coffee
 
         H.it "Should delete a coffee" $ do
-          let 
+          let
             action = do
               cId <- TE.ExceptT (pure cId)
               TE.ExceptT (S.runClientM (deleteCoffee cId) cEnv)
@@ -96,7 +96,7 @@ coffee = do
           result `H.shouldBe` Right S.NoContent
 
         H.it "Coffee should no longer exist" $ do
-          let 
+          let
             action = do
               cId <- TE.ExceptT (pure cId)
               TE.ExceptT (S.runClientM (retrieveCoffee cId) cEnv)

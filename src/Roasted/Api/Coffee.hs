@@ -8,13 +8,13 @@ module Roasted.Api.Coffee
   )
 where
 
-import qualified Barbies.Bare           as B
-import qualified Data.Functor.Barbie    as B
-import           Data.Int               (Int64)
-import qualified Roasted.Domain.Coffee  as RDC
-import qualified Roasted.Monad          as RM
-import qualified Servant                as S
-import Roasted.Api.Util qualified as RAU
+import qualified Barbies.Bare          as B
+import qualified Data.Functor.Barbie   as B
+import           Data.Int              (Int64)
+import qualified Roasted.Api.Util      as RAU
+import qualified Roasted.Domain.Coffee as RDC
+import qualified Roasted.Monad         as RM
+import qualified Servant               as S
 
 type Retrieves = S.Get '[S.JSON] [RDC.Coffee]
 
@@ -44,7 +44,7 @@ coffeeServer = retrieveCoffees S.:<|> retrieveCoffee S.:<|> createCoffee  S.:<|>
 
 retrieveCoffees :: RM.RoastedMonad [RDC.Coffee]
 retrieveCoffees = do
-  resp <- RAU.runSingleStatement () RDC.retrieveCoffeesStatement 
+  resp <- RAU.runSingleStatement () RDC.retrieveCoffeesStatement
   RAU.respOr500 resp
 
 retrieveCoffee :: Int64 -> RM.RoastedMonad RDC.Coffee
@@ -54,7 +54,7 @@ retrieveCoffee coffeeId = do
 
 createCoffee :: RDC.CoffeeReq -> RM.RoastedMonad RDC.Coffee
 createCoffee coffee = do
-  values <- maybe (S.throwError S.err400) pure $ RDC.parseCoffeeReq coffee 
+  values <- maybe (S.throwError S.err400) pure $ RDC.parseCoffeeReq coffee
   resp <- RAU.runSingleStatement values RDC.createCoffeeStatement
   RAU.respOr500 resp
 
