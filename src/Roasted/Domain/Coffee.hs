@@ -34,7 +34,7 @@ import           GHC.Generics               (Generic)
 import qualified Hasql.Decoders             as HD
 import qualified Hasql.Encoders             as HE
 import           Hasql.Statement            as HS
-import qualified Hasql.TH                   as HT
+import qualified Roasted.Domain.Gyro        as RDG
 
 data CoffeeHT t f = Coffee
   { coffeeId    :: B.Wear t f Int64,
@@ -69,16 +69,13 @@ instance A.ToJSON Coffee
 instance A.FromJSON Coffee
 
 type CoffeeReq = CoffeeHT B.Covered Maybe
-
+--
 instance ToSchema CoffeeReq
-
+--
 instance A.ToJSON CoffeeReq
-
+--
 instance A.FromJSON CoffeeReq where
-  parseJSON = A.withObject "Coffee" $ \v ->
-    Coffee Nothing
-      <$> v A..: "name"
-      <*> v A..:? "description"
+  parseJSON = RDG.deserializeGyro "Coffee" coffeeGyro
 
 parseCoffeeReq :: CoffeeReq -> Maybe (Text, Maybe Text)
 parseCoffeeReq req = do
@@ -87,45 +84,22 @@ parseCoffeeReq req = do
 
 type CoffeeH f = CoffeeHT B.Covered f
 
-coffeeIdEncoder :: HE.Params Int64
-coffeeIdEncoder = HE.param (HE.nonNullable HE.int8)
-
-coffeeEncoder :: HE.Params Coffee
-coffeeEncoder = encodeGyro coffeeGyro
-
-coffeeDecoder :: HD.Row Coffee
-coffeeDecoder = decodeGyro coffeeGyro
-
-data Gyro s a = Gyro
-    { gyroName :: String
-    , encoder  :: HE.Params a
-    , decoder  :: HD.Row a
-    , selector :: s -> a
-    }
-
-decodeGyro :: (B.BareB h, B.FunctorB (h B.Covered), B.TraversableB (h B.Covered)) 
-           => h B.Covered (Gyro (h B.Bare I.Identity)) 
-           -> HD.Row (h B.Bare I.Identity)
-decodeGyro hkd = B.bstrip <$> B.bsequence' (B.bmap decoder hkd)
-
-encodeGyro :: (B.TraversableB (h B.Covered)) 
-           => h B.Covered (Gyro (h B.Bare I.Identity)) 
-           -> HE.Params (h B.Bare I.Identity)
-encodeGyro = B.bfoldMap ((>$<) <$> selector <*> encoder)
-
-nullable :: String -> HE.Value a -> HD.Value a -> (s -> Maybe a) -> Gyro s (Maybe a)
-nullable s enc dec = Gyro s  (HE.param $ HE.nullable enc) (HD.column $ HD.nullable dec)
-
-required :: String -> HE.Value a -> HD.Value a -> (s -> a) -> Gyro s a
-required s enc dec = Gyro s (HE.param $ HE.nonNullable enc) (HD.column $ HD.nonNullable dec)
-
-coffeeGyro :: CoffeeH (Gyro Coffee)
+coffeeGyro :: CoffeeH (RDG.Gyro Coffee)
 coffeeGyro =
   Coffee {
-    coffeeId = required "coffeeId" HE.int8 HD.int8 (coffeeId :: Coffee -> Int64),
-    name = required "name" HE.text HD.text (name :: Coffee -> Text),
-    description = nullable "description" HE.text HD.text (description :: Coffee -> Maybe Text)
+    coffeeId = RDG.internal "coffeeId" (RDG.nonNullableRepr RDG.int8) (coffeeId :: Coffee -> Int64),
+    name = RDG.external "name" (RDG.nonNullableRepr RDG.text) (name :: Coffee -> Text),
+    description = RDG.external "description" (RDG.nullableRepr RDG.text) (description :: Coffee -> Maybe Text)
   }
+
+coffeeIdEncoder :: HE.Params Int64
+coffeeIdEncoder = RDG.encoder $ coffeeId coffeeGyro
+
+coffeeEncoder :: HE.Params Coffee
+coffeeEncoder = RDG.encodeGyro coffeeGyro
+
+coffeeDecoder :: HD.Row Coffee
+coffeeDecoder = RDG.decodeGyro coffeeGyro
 
 retrieveCoffeesStatement :: HS.Statement () [Coffee]
 retrieveCoffeesStatement = HS.Statement sql HE.noParams (HD.rowList coffeeDecoder) True

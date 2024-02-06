@@ -22,6 +22,7 @@ library
                       , Roasted.Config
                       , Roasted.Monad
     other-modules:      Roasted.Api.Util
+                      , Roasted.Domain.Gyro
 
     -- Other library packages from which modules are imported.
     build-depends:    base ^>=4.17.2.1
