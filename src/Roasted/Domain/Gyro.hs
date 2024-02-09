@@ -1,10 +1,13 @@
+{-# LANGUAGE GADTs #-}
+
 module Roasted.Domain.Gyro
   ( Gyro(Gyro),
-    decodeGyro,
-    deserializeGyro,
-    encodeGyro,
-    encoder,
-    decoder,
+    Gyroed,
+    decodeHkdGyro,
+    deserializeHkdGyro,
+    encodeHkdGyro,
+    gyroEncoder,
+    gyroDecoder,
     nullableRepr,
     nonNullableRepr,
     internal,
@@ -13,7 +16,6 @@ module Roasted.Domain.Gyro
     text,
   ) where
 
-import qualified Barbies.Bare               as B
 import qualified Data.Aeson                 as A
 import qualified Data.Aeson.Key             as A
 import qualified Data.Aeson.Types           as A
@@ -53,47 +55,49 @@ greprDecoder (Nullable (_, dec))    = HD.column $ HD.nullable dec
 greprDecoder (NonNullable (_, dec)) = HD.column $ HD.nonNullable dec
 
 greprParser :: Grepr a -> (A.Key -> A.Object -> A.Parser (Maybe a))
-greprParser (NonNullable _) key = \v -> v A..: key
-greprParser (Nullable _) key    = \v -> v A..:? key
+greprParser (NonNullable _) key = (A..: key)
+greprParser (Nullable _) key    = (A..:? key)
 
 data DeserializeOpts = Internal | External
 
 data Gyro s a = Gyro
     { gyroName        :: Text
     , grepr           :: Grepr a
-    , selector        :: s -> a
+    , selector        :: forall f. s f -> f a
     , deserializeOpts :: DeserializeOpts
     }
 
-encoder :: Gyro s a -> HE.Params a
-encoder = greprEncoder . grepr
+gyroEncoder :: Gyro s a -> HE.Params a
+gyroEncoder = greprEncoder . grepr
 
-decoder :: Gyro s a -> HD.Row a
-decoder = greprDecoder . grepr
+gyroDecoder :: Gyro s a -> HD.Row a
+gyroDecoder = greprDecoder . grepr
 
-parser :: Gyro s a -> (A.Object -> Compose A.Parser Maybe a)
-parser gyr = case deserializeOpts gyr of
-  Internal -> \v -> Compose $ pure Nothing
+gyroParser :: Gyro s a -> (A.Object -> Compose A.Parser Maybe a)
+gyroParser gyr = case deserializeOpts gyr of
+  Internal -> const $ Compose $ pure Nothing
   External -> Compose <$> greprParser (grepr gyr) (A.fromText (gyroName gyr))
 
-decodeGyro :: (B.BareB h, B.FunctorB (h B.Covered), B.TraversableB (h B.Covered))
-           => h B.Covered (Gyro (h B.Bare I.Identity))
-           -> HD.Row (h B.Bare I.Identity)
-decodeGyro hkd = B.bstrip <$> B.bsequence' (B.bmap decoder hkd)
+type Gyroed h = h (Gyro h)
 
-encodeGyro :: (B.TraversableB (h B.Covered))
-           => h B.Covered (Gyro (h B.Bare I.Identity))
-           -> HE.Params (h B.Bare I.Identity)
-encodeGyro = B.bfoldMap ((>$<) <$> selector <*> encoder)
+decodeHkdGyro :: (B.FunctorB h, B.TraversableB h)
+           => Gyroed h
+           -> HD.Row (h I.Identity)
+decodeHkdGyro hkd = B.bsequence' (B.bmap gyroDecoder hkd)
 
-deserializeGyro :: (B.FunctorB (h B.Covered), B.TraversableB (h B.Covered))
+encodeHkdGyro :: (B.TraversableB h)
+           => Gyroed h
+           -> HE.Params (h I.Identity)
+encodeHkdGyro = B.bfoldMap ((>$<) <$> (\g -> (I.runIdentity . selector g)) <*> gyroEncoder)
+
+deserializeHkdGyro :: (B.FunctorB h, B.TraversableB h)
                 => String
-                -> h B.Covered (Gyro (h B.Bare I.Identity ))
-                -> A.Value -> A.Parser (h B.Covered Maybe)
-deserializeGyro s hkd = A.withObject s $ \v -> B.bsequence $ B.bmap (\x -> (parser x) v) hkd
+                -> Gyroed h
+                -> A.Value -> A.Parser (h Maybe)
+deserializeHkdGyro s hkd = A.withObject s $ \v -> B.bsequence $ B.bmap (`gyroParser` v) hkd
 
-internal :: Text -> Grepr a -> (s -> a) -> Gyro s a
+internal :: Text -> Grepr a -> (forall f. s f -> f a) -> Gyro s a
 internal s grepr sel = Gyro s grepr sel Internal
 
-external :: Text -> Grepr a -> (s -> a) -> Gyro s a
+external :: Text -> Grepr a -> (forall f. s f -> f a) -> Gyro s a
 external s grepr sel = Gyro s grepr sel External

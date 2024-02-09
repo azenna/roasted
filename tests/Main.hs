@@ -20,6 +20,7 @@ import qualified Servant                    as S
 import qualified Servant.Client             as S
 import           Servant.Client             (runClientM)
 import qualified Test.Hspec                 as H
+import qualified Control.Monad.Identity as I
 
 api :: S.Proxy RAC.CoffeeApi
 api = S.Proxy
@@ -69,23 +70,23 @@ coffee = do
          let cId = RDC.coffeeId <$> coffee
              action = do
                cId <- TE.ExceptT (pure cId)
-               TE.ExceptT (S.runClientM (retrieveCoffee cId) cEnv)
+               TE.ExceptT (S.runClientM (retrieveCoffee (I.runIdentity cId)) cEnv)
          result <- TE.runExceptT action
-         result `H.shouldBe` RDC.Coffee  <$> cId <*> pure "Unique" <*> pure (Just "it's working?")
+         result `H.shouldBe` RDC.Coffee  <$> cId <*> pure "Unique" <*> pure (I.Identity $ Just "it's working?")
 
       H.describe "Update coffee" $ do
         H.it "Should update a coffee" $ do
-          let cId = RDC.coffeeId <$> coffee
+          let cId = I.runIdentity . RDC.coffeeId <$> coffee
               update = RDC.Coffee Nothing (Just "Ununique") Nothing
               action = do
                 cId <- TE.ExceptT (pure cId)
                 TE.ExceptT (S.runClientM (updateCoffee cId update) cEnv)
           result <- TE.runExceptT action
-          result `H.shouldBe` RDC.Coffee <$> cId <*> pure "Ununique" <*> pure (Just "it's working?")
+          result `H.shouldBe` RDC.Coffee . I.Identity <$> cId <*> pure "Ununique" <*> pure (I.Identity $ Just "it's working?")
 
       H.sequential $ H.describe "Delete coffee" $ do
 
-        let cId = RDC.coffeeId <$> coffee
+        let cId = I.runIdentity . RDC.coffeeId <$> coffee
 
         H.it "Should delete a coffee" $ do
           let

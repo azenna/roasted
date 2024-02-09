@@ -1,14 +1,11 @@
 {-# LANGUAGE DerivingStrategies   #-}
 {-# LANGUAGE OverloadedStrings    #-}
-{-# LANGUAGE QuasiQuotes          #-}
 {-# LANGUAGE TypeFamilies         #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE DeriveAnyClass #-}
 
 module Roasted.Domain.Coffee
-  ( CoffeeHT (Coffee),
-    Coffee,
-    CoffeeH,
-    CoffeeReq,
+  ( CoffeeH (Coffee),
     coffeeId,
     name,
     description,
@@ -21,7 +18,6 @@ module Roasted.Domain.Coffee
   )
 where
 
-import qualified Barbies.Bare               as B
 import           Control.Monad              (join)
 import qualified Data.Aeson                 as A
 import qualified Data.Functor.Barbie        as B
@@ -36,82 +32,63 @@ import qualified Hasql.Encoders             as HE
 import           Hasql.Statement            as HS
 import qualified Roasted.Domain.Gyro        as RDG
 
-data CoffeeHT t f = Coffee
-  { coffeeId    :: B.Wear t f Int64,
-    name        :: B.Wear t f Text,
-    description :: B.Wear t f (Maybe Text)
+data CoffeeH f = Coffee
+  { coffeeId    :: f Int64,
+    name        :: f Text,
+    description :: f (Maybe Text)
   }
-  deriving (Generic)
+  deriving 
+  (Generic,
+   B.FunctorB,
+   B.TraversableB,
+   B.ApplicativeB,
+   B.ConstraintsB
+  )
 
-instance B.BareB CoffeeHT
+deriving instance (B.AllBF Show f CoffeeH) => Show (CoffeeH f)
+deriving instance (B.AllBF Eq f CoffeeH) => Eq (CoffeeH f)
+deriving instance (B.AllBF A.ToJSON f CoffeeH) => A.ToJSON (CoffeeH f)
+deriving instance (B.AllBF ToSchema f CoffeeH) => ToSchema (CoffeeH f)
 
-instance B.FunctorB (CoffeeHT B.Covered)
+instance A.FromJSON (CoffeeH I.Identity)
 
-instance B.TraversableB (CoffeeHT B.Covered)
+instance A.FromJSON (CoffeeH Maybe) where
+    parseJSON = RDG.deserializeHkdGyro "Coffee" coffeeGyro
 
-instance B.ApplicativeB (CoffeeHT B.Covered)
-
-instance B.ConstraintsB (CoffeeHT B.Covered)
-
-deriving instance (B.AllBF Show f (CoffeeHT B.Covered)) => Show (CoffeeHT B.Covered f)
-
-deriving instance (B.AllBF Eq f (CoffeeHT B.Covered)) => Eq (CoffeeHT B.Covered f)
-
-type Coffee = CoffeeHT B.Bare I.Identity
-
-deriving instance Show Coffee
-deriving instance Eq Coffee
-
-instance ToSchema Coffee
-
-instance A.ToJSON Coffee
-
-instance A.FromJSON Coffee
-
-type CoffeeReq = CoffeeHT B.Covered Maybe
---
-instance ToSchema CoffeeReq
---
-instance A.ToJSON CoffeeReq
---
-instance A.FromJSON CoffeeReq where
-  parseJSON = RDG.deserializeGyro "Coffee" coffeeGyro
-
-parseCoffeeReq :: CoffeeReq -> Maybe (Text, Maybe Text)
+parseCoffeeReq :: CoffeeH Maybe -> Maybe (Text, Maybe Text)
 parseCoffeeReq req = do
+
   n <- name req
   pure (n, join $ description req)
 
-type CoffeeH f = CoffeeHT B.Covered f
-
-coffeeGyro :: CoffeeH (RDG.Gyro Coffee)
+coffeeGyro :: RDG.Gyroed CoffeeH
 coffeeGyro =
   Coffee {
-    coffeeId = RDG.internal "coffeeId" (RDG.nonNullableRepr RDG.int8) (coffeeId :: Coffee -> Int64),
-    name = RDG.external "name" (RDG.nonNullableRepr RDG.text) (name :: Coffee -> Text),
-    description = RDG.external "description" (RDG.nullableRepr RDG.text) (description :: Coffee -> Maybe Text)
+    coffeeId = RDG.internal "coffeeId" (RDG.nonNullableRepr RDG.int8) coffeeId,
+    name = RDG.external "name" (RDG.nonNullableRepr RDG.text) name,
+    description = RDG.external "description" (RDG.nullableRepr RDG.text) description
   }
 
 coffeeIdEncoder :: HE.Params Int64
-coffeeIdEncoder = RDG.encoder $ coffeeId coffeeGyro
+coffeeIdEncoder = RDG.gyroEncoder $ coffeeId coffeeGyro
 
-coffeeEncoder :: HE.Params Coffee
-coffeeEncoder = RDG.encodeGyro coffeeGyro
+coffeeEncoder :: HE.Params (CoffeeH I.Identity)
+coffeeEncoder = RDG.encodeHkdGyro coffeeGyro
 
-coffeeDecoder :: HD.Row Coffee
-coffeeDecoder = RDG.decodeGyro coffeeGyro
+coffeeDecoder :: HD.Row (CoffeeH I.Identity)
+coffeeDecoder = RDG.decodeHkdGyro coffeeGyro
 
-retrieveCoffeesStatement :: HS.Statement () [Coffee]
+retrieveCoffeesStatement :: HS.Statement () [CoffeeH I.Identity]
 retrieveCoffeesStatement = HS.Statement sql HE.noParams (HD.rowList coffeeDecoder) True
   where
     sql = "select * from coffee"
 
-retrieveCoffeeStatement :: HS.Statement Int64 (Maybe Coffee)
+retrieveCoffeeStatement :: HS.Statement Int64 (Maybe (CoffeeH I.Identity))
 retrieveCoffeeStatement = HS.Statement sql coffeeIdEncoder (HD.rowMaybe coffeeDecoder) True
   where
     sql = "select * from coffee where id = $1"
 
-createCoffeeStatement :: HS.Statement (Text, Maybe Text) Coffee
+createCoffeeStatement :: HS.Statement (Text, Maybe Text) (CoffeeH I.Identity)
 createCoffeeStatement = HS.Statement sql encoder (HD.singleRow coffeeDecoder) True
   where
     sql = "insert into coffee (name, description) values ($1, $2) returning *"
@@ -119,7 +96,7 @@ createCoffeeStatement = HS.Statement sql encoder (HD.singleRow coffeeDecoder) Tr
       (fst >$< HE.param (HE.nonNullable HE.text))
         <> (snd >$< HE.param (HE.nullable HE.text))
 
-updateCoffeeStatement :: HS.Statement (Int64, Coffee) Coffee
+updateCoffeeStatement :: HS.Statement (Int64, CoffeeH I.Identity) (CoffeeH I.Identity)
 updateCoffeeStatement = HS.Statement sql encoder (HD.singleRow coffeeDecoder) True
   where
     sql = "update coffee set name = $3, description = $4 where id = $1 returning *"
